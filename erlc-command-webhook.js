@@ -1,19 +1,19 @@
 const express = require('express');
-const crypto = require('crypto');
+const nacl = require('tweetnacl');
 
 const app = express();
 // Render.com automatically sets the PORT environment variable
 const PORT = process.env.PORT || 3000;
 
-// Your ER:LC Server API Key - REPLACE THIS WITH YOUR ACTUAL KEY
-const SERVER_API_KEY = 'YOUR_SERVER_API_KEY_HERE';
+// Your ER:LC Server API Key - Get from environment variable (more secure)
+const SERVER_API_KEY = process.env.SERVER_API_KEY || 'YOUR_SERVER_API_KEY_HERE';
 
 // Ed25519 Public Key for signature verification (provided by ER:LC)
 const PUBLIC_KEY_BASE64 = 'MCowBQYDK2VwAyEAjSICb9pp0kHizGQtdG8ySWsDChfGqi+gyFCttigBNOA=';
 
-// Convert base64 public key to buffer
+// Convert base64 public key to buffer and extract the raw 32-byte Ed25519 key
 const publicKeyBuffer = Buffer.from(PUBLIC_KEY_BASE64, 'base64');
-// Extract the 32-byte Ed25519 key (skipping the SPKI wrapper)
+// Extract the 32-byte Ed25519 key (skipping the SPKI wrapper which is first 12 bytes)
 const publicKey = publicKeyBuffer.slice(-32);
 
 // Middleware to capture raw body
@@ -35,7 +35,7 @@ app.post('/webhook', async (req, res) => {
       return res.status(401).send('Missing signature headers');
     }
 
-    // Verify signature
+    // Verify signature using tweetnacl
     const message = Buffer.concat([
       Buffer.from(timestamp, 'utf8'),
       req.rawBody
@@ -43,15 +43,11 @@ app.post('/webhook', async (req, res) => {
 
     const signatureBuffer = Buffer.from(signature, 'hex');
     
-    const isValid = crypto.verify(
-      null,
+    // Use tweetnacl for Ed25519 verification
+    const isValid = nacl.sign.detached.verify(
       message,
-      {
-        key: publicKey,
-        format: 'der',
-        type: 'spki'
-      },
-      signatureBuffer
+      signatureBuffer,
+      publicKey
     );
 
     if (!isValid) {
