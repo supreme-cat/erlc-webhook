@@ -7,7 +7,8 @@
     "start": "node erlc-command-webhook.js"
   },
   "dependencies": {
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "tweetnacl": "^1.0.3"
   },
   "engines": {
     "node": ">=18.x"
