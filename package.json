@@ -1,0 +1,15 @@
+{
+  "name": "erlc-command-webhook",
+  "version": "1.0.0",
+  "description": "Webhook server for ER:LC custom commands",
+  "main": "erlc-command-webhook.js",
+  "scripts": {
+    "start": "node erlc-command-webhook.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=18.x"
+  }
+}
