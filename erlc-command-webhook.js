@@ -59,27 +59,35 @@ app.post('/webhook', async (req, res) => {
     const data = req.body;
     console.log('Received webhook:', JSON.stringify(data, null, 2));
 
-    // Check if it's a message event
-    if (data.message && data.message.startsWith(';')) {
-      const messageContent = data.message.substring(1).trim(); // Remove the semicolon
-      const parts = messageContent.split(' ');
-      const command = parts[0].toLowerCase();
+    // Check if we have events array
+    if (data.events && Array.isArray(data.events)) {
+      for (const event of data.events) {
+        // Check if it's a CustomCommand event
+        if (event.event === 'CustomCommand' && event.data) {
+          const command = event.data.command;
+          const argument = event.data.argument;
 
-      // Check if it's our ;t or ;talk command
-      if (command === 't' || command === 'talk') {
-        if (parts.length < 3) {
-          console.log('Not enough arguments for command');
-          return res.status(200).send('OK');
+          console.log(`Custom command detected: ${command} with argument: ${argument}`);
+
+          // Check if it's our ;t or ;talk command
+          if (command === 't' || command === 'talk') {
+            const parts = argument.trim().split(' ');
+            
+            if (parts.length < 2) {
+              console.log('Not enough arguments for command. Need: username message');
+              continue;
+            }
+
+            const username = parts[0];
+            const message = parts.slice(1).join(' ');
+            const pmCommand = `:pm ${username} ${message}`;
+
+            console.log(`Converting command to: ${pmCommand}`);
+
+            // Send the :pm command back to the server
+            await sendCommand(pmCommand);
+          }
         }
-
-        const username = parts[1];
-        const message = parts.slice(2).join(' ');
-        const pmCommand = `:pm ${username} ${message}`;
-
-        console.log(`Converting command to: ${pmCommand}`);
-
-        // Send the :pm command back to the server
-        await sendCommand(pmCommand);
       }
     }
 
@@ -93,6 +101,9 @@ app.post('/webhook', async (req, res) => {
 // Function to send command to ER:LC server
 async function sendCommand(command) {
   try {
+    console.log(`Sending command to ER:LC API: "${command}"`);
+    console.log(`Using API key: ${SERVER_API_KEY.substring(0, 10)}...`);
+    
     const response = await fetch('https://api.policeroleplay.community/v2/server/command', {
       method: 'POST',
       headers: {
@@ -104,11 +115,21 @@ async function sendCommand(command) {
       })
     });
 
+    console.log(`API Response Status: ${response.status} ${response.statusText}`);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`API Error Response: ${errorText}`);
+      return { error: true, status: response.status, message: errorText };
+    }
+
     const result = await response.json();
-    console.log('Command response:', result);
+    console.log('Command response:', JSON.stringify(result, null, 2));
     return result;
   } catch (error) {
-    console.error('Error sending command:', error);
+    console.error('Error sending command:', error.message);
+    console.error('Full error:', error);
+    return { error: true, message: error.message };
   }
 }
 
